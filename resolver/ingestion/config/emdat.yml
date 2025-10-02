@@ -24,7 +24,6 @@ shock_map:
   heat_wave: ["Heat wave", "Extreme temperature", "Heat"]
   cold_wave: ["Cold wave", "Extreme cold", "Cold"]
   wildfire: ["Wildfire", "Forest fire", "Fire"]
-  earthquake: ["Earthquake", "Seismic"]
   landslide: ["Landslide"]
   volcano: ["Volcanic activity", "Volcano"]
   phe: ["Epidemic", "Infectious disease", "Outbreak"]

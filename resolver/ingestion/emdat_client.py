@@ -57,7 +57,6 @@ HAZARD_KEY_TO_CODE = {
     "heat_wave": "HW",
     "cold_wave": "CW",
     "wildfire": "WF",
-    "earthquake": "EQ",
     "landslide": "LS",
     "volcano": "VO",
     "phe": "PHE",
