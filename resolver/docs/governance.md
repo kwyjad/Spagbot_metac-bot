@@ -12,10 +12,20 @@
   - **Scoring uses snapshots** for that month; live views use current facts.
 
 ## Source Precedence & Conflict
-- Precedence (highest→lowest):  
+- Precedence (highest→lowest):
   `inter_agency_plan > ifrc_or_gov_sitrep > un_cluster_snapshot > reputable_ingo_un > media_discovery_only`
 - **One total only** — never sum across agencies.
 - **Conflict rule**: if eligible figures differ by **>20%** → choose higher precedence; if same tier, use **newest as_of** then **latest publication**. Keep the alternative in `alt_value` + `alt_source_url` and explain in `precedence_decision`.
+
+### How precedence resolves overlaps
+- Source tiers are evaluated first; higher tiers always beat lower tiers when both
+  report the same (country, hazard, month, metric) combination.
+- Within a tier, ties break on **newest `as_of`**, then prefer **non-null** values,
+  and finally fall back to alphabetical source code to keep decisions deterministic.
+- Metric-specific preferences (e.g., PIN preferring IPC / IFRC) are honoured
+  when available, even if another source is marginally more recent.
+- Manual review overrides replace the engine output entirely for the targeted
+  key; the override note must explain the decision.
 
 ## Attribution & Scope
 - A record must **explicitly link** the number to the hazard episode (per policy).  
