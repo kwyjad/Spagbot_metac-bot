@@ -32,6 +32,9 @@ Later (Epic C) we will replace stubs with real API/scraper clients.
 Each connector:
 - Reads `resolver/data/countries.csv` and `resolver/data/shocks.csv`
 - Produces `resolver/staging/<source>.csv` using the exporter’s expected columns
+- Must write a CSV that matches `resolver/tools/schema.yml`; CI runs schema
+  tests (`pytest -q resolver/tests/test_staging_schema_all.py`) immediately
+  after ingestion to catch regressions
 
 ## Connector toggles & outputs
 
@@ -69,6 +72,12 @@ Then:
 python resolver/tools/export_facts.py --in resolver/staging --out resolver/exports
 python resolver/tools/validate_facts.py --facts resolver/exports/facts.csv
 python resolver/tools/freeze_snapshot.py --facts resolver/exports/facts.csv --month YYYY-MM
+
+After changing `resolver/tools/schema.yml`, regenerate the markdown summary:
+
+```bash
+python resolver/tools/generate_schemas_md.py --in resolver/tools/schema.yml --out SCHEMAS.md --sort
+```
 ```
 
 ### Structured logging & retries

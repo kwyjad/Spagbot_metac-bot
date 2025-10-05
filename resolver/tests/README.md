@@ -31,6 +31,21 @@ python -m pytest resolver/tests -q
 Tests will skip gracefully if an expected file isn't present (e.g., snapshots),
 but will fail if a file exists and violates the contract.
 
+### Staging schema tests
+
+After running the ingestor you can validate every staging CSV against the canonical
+schema:
+
+```bash
+python resolver/ingestion/run_all_stubs.py
+pytest -q resolver/tests/test_staging_schema_all.py
+```
+
+Failures list the offending CSV followed by the specific header or type issues
+(missing columns, unexpected headers, invalid enums, etc.). Fix the connector
+output so the CSV matches the schema, or update `resolver/tools/schema.yml` if
+the schema needs to change.
+
 ### Hermetic connector tests
 Header tests set `RESOLVER_SKIP_IFRCGO=1` and `RESOLVER_SKIP_RELIEFWEB=1` so no network is required.
 Each connector must still produce a CSV with the canonical header (even if empty).
