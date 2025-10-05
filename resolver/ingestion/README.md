@@ -61,6 +61,25 @@ Each connector:
 - **WorldPop denominators**: Upserts replace previously written `(iso3, year)` rows so reruns update
   `as_of` timestamps without duplicating records.
 
+## Smoke tests (offline)
+
+Run every connector in a disabled/offline configuration to ensure they still exit cleanly
+and write header-only CSVs:
+
+```bash
+pytest -q resolver/tests/test_ingestion_smoke_all_connectors.py
+```
+
+To inspect a single connector locally (example: IFRC GO):
+
+```bash
+python resolver/ingestion/ifrc_go_client.py
+Get-Content resolver/staging/ifrc_go.csv | Select-Object -First 3   # PowerShell
+```
+
+The smoke tests expect each connector to exit `0`, emit a header-only CSV in
+`resolver/staging/`, and log a clear reason that it is disabled/placeholder/header-only.
+
 ## Run all stubs
 
 ```bash
