@@ -23,7 +23,7 @@ Build a reliable, auditable **database-first** pipeline that ingests humanitaria
 **In-scope (current phase)**
 
 - Sources: IFRC GO (Admin v2), ReliefWeb v2 (with WAF handling), UNHCR Refugee Statistics API (annual, month-aware IDs), **UNHCR ODP** (monthly arrivals), and staged additions (OCHA/HDX, IOM DTM, WHO, FEWS NET).
-- Shocks (forecastable): Flood, Drought, Tropical Cyclone, Heat Wave, Armed Conflict (onset/escalation/cessation), **Displacement Influx (DI)**, Civil Unrest, Economic Crisis, Public Health Emergency.
+- Shocks (forecastable): Flood, Drought, Tropical Cyclone, Heat Wave, Armed Conflict (onset/escalation/resolution), **Displacement Influx (DI)**, Civil Unrest, Economic Crisis, Public Health Emergency.
 - Countries: global coverage using countries.csv (name + ISO3).
 
 **Out of scope (for now)**

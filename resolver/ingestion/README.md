@@ -215,13 +215,23 @@ UNHCR’s public API exposes `/asylum-applications/`, `/population/`, `/asylum-d
 
 **Env toggles:**
 
-- `RESOLVER_SKIP_DTM=1` — skip the connector (writes header-only CSV).
+- `RESOLVER_SKIP_DTM=1` — skip the connector (still writes an empty `staging/dtm_displacement.csv` with canonical headers).
 - `RESOLVER_MAX_RESULTS=<int>` — optional cap for emitted rows.
 - `RESOLVER_DEBUG=1` — verbose logging (shared convention across ingestion clients).
 - `DTM_ALLOW_FIRST_MONTH=1` — include the first month from cumulative series as a delta (default 0 → drop it).
 - `DTM_DEFAULT_HAZARD=<key>` — override the fallback hazard keyword (default `displacement_influx`).
 - `DTM_BASE=<url>` — override the base discovery endpoint (defaults to `https://data.humdata.org`).
 - `RELIEFWEB_APPNAME` — reused for User-Agent hints when hitting HDX mirrors.
+
+**Compatibility helpers:** The module continues to expose the historic
+`SERIES_INCIDENT`/`SERIES_CUMULATIVE` constants, `load_registries`,
+`rollup_subnational`, `compute_monthly_deltas`, and `infer_hazard` so legacy
+tests and notebooks can import the same public API while the connector evolves.
+
+**Header guarantees:** Setting `RESOLVER_SKIP_DTM=1` or `RESOLVER_SKIP_EMDAT=1`
+returns immediately but still writes header-only CSVs to
+`resolver/staging/dtm_displacement.csv` and `resolver/staging/emdat_pa.csv`
+respectively so downstream checks never see missing files.
 
 ## ACLED — real connector
 
@@ -278,8 +288,12 @@ UNHCR’s public API exposes `/asylum-applications/`, `/population/`, `/asylum-d
   - `staging/worldpop.csv` — canonical staging snapshot for auditing the latest fetch.
   - `data/population.csv` — versioned denominator table (`iso3,year,population,source,product,download_date,source_url,notes`).
 - **Semantics:** Upserts the most recent year per ISO3 (plus `WORLDPOP_YEARS_BACK` historic years) with overwrite-by-key semantics on reruns.
+- **Public API:** `worldpop_client.collect_rows()` (no side effects), `build_rows()`, `write_rows()`, and `CANONICAL_COLUMNS` remain stable for downstream tests and stubs.
 - **Env toggles:**
-  - `RESOLVER_SKIP_WORLDPOP=1` — emit header-only CSVs (no network calls).
+  - `RESOLVER_SKIP_WORLDPOP=1` — emit header-only CSVs (no network calls) while
+    touching both `data/population.csv` and `staging/worldpop_denominators.csv` (and the
+    compatibility alias `staging/worldpop.csv`) so header checks remain deterministic even
+    when no data is collected.
   - `WORLDPOP_PRODUCT` — choose dataset variant (`un_adj_unconstrained` default; `un_adj_constrained` supported).
   - `WORLDPOP_YEARS_BACK` — fetch additional previous years (default `0`).
   - `WORLDPOP_URL_TEMPLATE` — override the configured URL pattern (handy for mirrors/tests).
