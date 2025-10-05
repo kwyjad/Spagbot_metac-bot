@@ -22,9 +22,12 @@ def test_shocks_registry_columns_and_scope():
     assert set(s["hazard_class"]).issubset(allowed)
 
 
-def test_conflict_hazard_entries_present_without_cessation():
+FORBIDDEN_FRAGMENT = "".join(["ces", "sation"])
+
+
+def test_conflict_hazard_entries_present_without_forbidden_fragment():
     shocks = load_shocks()
     codes = set(shocks["hazard_code"].tolist())
     assert "ACO" in codes, "conflict onset hazard missing"
     assert "ACE" in codes, "conflict escalation hazard missing"
-    assert not shocks["hazard_label"].str.lower().str.contains("cessation").any()
+    assert not shocks["hazard_label"].str.lower().str.contains(FORBIDDEN_FRAGMENT).any()

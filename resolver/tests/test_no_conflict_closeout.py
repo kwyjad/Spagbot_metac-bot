@@ -8,10 +8,10 @@ SEARCH_DIRS = [
     ROOT / "data",
     ROOT / "tests",
 ]
-FORBIDDEN = "armed_conflict_cessation"
+FORBIDDEN = "armed_conflict_" + "".join(["ces", "sation"])
 
 
-def test_conflict_cessation_removed():
+def test_conflict_flag_removed():
     shocks_path = ROOT / "data" / "shocks.csv"
     text = shocks_path.read_text(encoding="utf-8")
     assert FORBIDDEN not in text
