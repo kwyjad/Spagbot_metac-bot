@@ -31,6 +31,25 @@ python -m pytest resolver/tests -q
 Tests will skip gracefully if an expected file isn't present (e.g., snapshots),
 but will fail if a file exists and violates the contract.
 
+### Precedence multi-source overlaps
+
+The precedence regression tests exercise a synthetic dataset with overlapping
+sources to ensure the resolver consistently honours tier policy, recency, and
+manual overrides.
+
+```bash
+pytest -q resolver/tests/test_precedence_multisource.py
+```
+
+Failures usually mean either:
+
+- The policy config changed (e.g., new tier ordering) and the fixture needs to
+  be updated, or
+- A connector emitted unexpected fields (such as empty `as_of` values).
+
+Inspect the failing assertion to see which country / hazard / metric combo broke
+and adjust the precedence config or upstream mapping accordingly.
+
 ### Staging schema tests
 
 After running the ingestor you can validate every staging CSV against the canonical
