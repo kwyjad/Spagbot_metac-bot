@@ -52,11 +52,14 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r resolver/requirements.txt
+          pip install -r resolver/requirements-dev.txt
       - name: Run ${{ matrix.connector }} (full)
         env:
           RESOLVER_FAIL_ON_STUB_ERROR: "0"
         run: |
           python -m resolver.ingestion.run_all_stubs --mode real --only ${{ matrix.connector }} --log-level INFO --log-format json
+      - name: Run staging schema tests
+        run: pytest -q resolver/tests/test_staging_schema_all.py
       - name: Record job status
         if: always()
         env:
