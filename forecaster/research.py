@@ -1,4 +1,4 @@
-# spagbot/research.py
+# forecaster/research.py
 from __future__ import annotations
 """
 research.py — External research pipeline **without Serper/AskNews**.

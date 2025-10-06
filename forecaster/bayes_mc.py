@@ -3,7 +3,7 @@
 """
 bayes_mc.py
 -----------
-Monte Carlo layer for Bayesian reasoning in Spagbot.
+Monte Carlo layer for Bayesian reasoning in the Forecaster.
 VERSION: 2.0 (2025-09-15)
 
 This module:

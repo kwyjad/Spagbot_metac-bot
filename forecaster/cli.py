@@ -1,6 +1,6 @@
 from __future__ import annotations
 """
-cli.py — Spagbot runner (unified CSV + ablation support)
+cli.py — Forecaster runner (unified CSV + ablation support)
 
 WHAT THIS FILE DOES (high level, in plain English)
 --------------------------------------------------
@@ -54,7 +54,7 @@ def _advise_poetry_lock_if_needed():
     if os.getenv("CI"):
         return  # CI already handles regeneration
     # Lightweight hint only; we don't try to run Poetry here.
-    os.environ.setdefault("SPAGBOT_LOCK_HINT_SHOWN", "0")
+    os.environ.setdefault("FORECASTER_LOCK_HINT_SHOWN", "0")
 
 
 def _safe_json_load(s: str):
@@ -86,7 +86,7 @@ def _must_dict(name: str, obj: Any) -> Dict[str, Any]:
     return d
 
 
-# ---- Spagbot internals (all relative imports) --------------------------------
+# ---- Forecaster internals (all relative imports) --------------------------------
 from .config import (
     TOURNAMENT_ID, AUTH_HEADERS, API_BASE_URL,
     ist_iso, ist_stamp, SUBMIT_PREDICTION, METACULUS_HTTP_TIMEOUT,
@@ -112,7 +112,7 @@ except Exception:
         from topic_classify import should_run_gtmc1  # type: ignore
     except Exception as e:
         raise ImportError(
-            "Could not import 'topic_classify'. Move topic_classify.py into 'spagbot/' "
+            "Could not import 'topic_classify'. Move topic_classify.py into 'forecaster/' "
             "or keep it at repo root (this file supports both)."
         ) from e
 
@@ -273,10 +273,10 @@ def _sanitize_markdown_chunks(chunks: List[Any]) -> List[str]:
 
 def _maybe_dump_raw_gtmc1(content: str, *, run_id: str, question_id: int) -> Optional[str]:
     """
-    If SPAGBOT_DEBUG_RAW=1, write the raw LLM JSON-ish text we received for the
+    If FORECASTER_DEBUG_RAW=1, write the raw LLM JSON-ish text we received for the
     GTMC1 actor table to a file in gtmc_logs/ and return the path. Otherwise None.
     """
-    if os.getenv("SPAGBOT_DEBUG_RAW", "0") != "1":
+    if os.getenv("FORECASTER_DEBUG_RAW", "0") != "1":
         return None
     try:
         os.makedirs("gtmc_logs", exist_ok=True)
@@ -1366,7 +1366,7 @@ async def run_job(mode: str, limit: int, submit: bool, purpose: str) -> None:
     # --- SeenGuard wiring (handles both package and top-level) ---------------
     def _load_seen_guard():
         """
-        Try to import a SeenGuard instance/class from spagbot.seen_guard or seen_guard.
+        Try to import a SeenGuard instance/class from forecaster.seen_guard or seen_guard.
         Return an instance or None.
         """
         sg_mod = None
@@ -1376,7 +1376,7 @@ async def run_job(mode: str, limit: int, submit: bool, purpose: str) -> None:
             sg_mod = _sg
         except Exception:
             # Fall back to absolute names
-            for modname in ("spagbot.seen_guard", "seen_guard"):
+            for modname in ("forecaster.seen_guard", "seen_guard"):
                 try:
                     sg_mod = importlib.import_module(modname)
                     break
@@ -1551,7 +1551,7 @@ async def run_job(mode: str, limit: int, submit: bool, purpose: str) -> None:
 # ==============================================================================
 
 def _parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="Spagbot runner")
+    p = argparse.ArgumentParser(description="Forecaster runner")
     p.add_argument("--mode", default="tournament", choices=["tournament", "file"], help="Run mode")
     p.add_argument("--limit", type=int, default=20, help="Max posts to fetch/process")
     p.add_argument("--submit", action="store_true", help="Submit forecasts to Metaculus")
@@ -1567,7 +1567,7 @@ def main() -> None:
         # Never block the run because of the hint
         pass
     args = _parse_args()
-    print("🚀 Spagbot ensemble starting…")
+    print("🚀 Forecaster ensemble starting…")
     print(f"Mode: {args.mode} | Limit: {args.limit} | Purpose: {args.purpose} | Submit: {bool(args.submit)}")
     try:
         asyncio.run(run_job(mode=args.mode, limit=args.limit, submit=bool(args.submit), purpose=args.purpose))

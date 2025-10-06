@@ -34,7 +34,7 @@ Important scales & conventions:
     (i.e., exceedance threshold defaults to 50.0). You can change that via
     `yes_threshold` in `run_monte_carlo_from_actor_table(...)`.
 
-Usage from Spagbot:
+Usage from Forecaster:
   signal, df = run_monte_carlo_from_actor_table(actor_rows, num_runs=60, log_dir="gtmc_logs", run_slug=slug)
   # Use signal["exceedance_ge_50"] (preferred) as the probability-like signal.
   # Keep "median_of_final_medians" if you need axis-level interpretation too.
@@ -521,7 +521,7 @@ def run_monte_carlo_from_actor_table(
     tol: float = 1e-3
 ) -> Tuple[Dict[str, Any], Union["pd.DataFrame", List[Dict[str, Any]]]]:
     """
-    Main entry for Spagbot and friends.
+    Main entry for Forecaster and friends.
 
     Args
     ----

@@ -1,4 +1,4 @@
-# spagbot/seen_guard.py
+# forecaster/seen_guard.py
 """
 seen_guard.py
 -------------
