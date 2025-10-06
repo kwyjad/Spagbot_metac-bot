@@ -53,8 +53,8 @@ jobs:
       TEST_POST_IDS: "578,14333,22427,38195"
 
       # Force fresh research: 1 = disable cache
-      SPAGBOT_DISABLE_RESEARCH_CACHE: "1"
-      SPAGBOT_DISABLE_CLASSIFIER_CACHE: "0"
+      FORECASTER_DISABLE_RESEARCH_CACHE: "1"
+      FORECASTER_DISABLE_CLASSIFIER_CACHE: "0"
 
       # Knobs
       RESEARCH_TEMP: "0.10"
@@ -105,15 +105,23 @@ jobs:
       - name: Install deps
         run: poetry install --no-interaction --no-ansi
 
-      - name: Run Spagbot (fresh)
+      - name: Forecaster unit tests
         run: |
-          poetry run python run_spagbot.py --mode test_questions --fresh-research --limit 3
+          if [ -d forecaster/tests ]; then
+            poetry run pytest -q forecaster/tests
+          else
+            echo "No forecaster/tests directory; skipping pytest."
+          fi
+
+      - name: Run Forecaster (fresh)
+        run: |
+          poetry run python run_forecaster.py --mode test_questions --fresh-research --limit 3
 
       - name: Upload artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: spagbot-run-${{ github.run_id }}
+          name: forecaster-run-${{ github.run_id }}
           path: |
             forecast_logs/**
             forecasts.csv

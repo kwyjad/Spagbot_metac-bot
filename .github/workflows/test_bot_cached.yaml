@@ -52,8 +52,8 @@ jobs:
       TEST_POST_IDS: "578,14333,22427,38195"
 
       # Cache enabled (use cache): 0 = allow cache
-      SPAGBOT_DISABLE_RESEARCH_CACHE: "0"
-      SPAGBOT_DISABLE_CLASSIFIER_CACHE: "0"
+      FORECASTER_DISABLE_RESEARCH_CACHE: "0"
+      FORECASTER_DISABLE_CLASSIFIER_CACHE: "0"
 
       # Knobs
       RESEARCH_TEMP: "0.10"
@@ -104,15 +104,23 @@ jobs:
       - name: Install deps
         run: poetry install --no-interaction --no-ansi
 
-      - name: Run Spagbot (cached)
+      - name: Forecaster unit tests
         run: |
-          poetry run python run_spagbot.py --mode test_questions --limit 3
+          if [ -d forecaster/tests ]; then
+            poetry run pytest -q forecaster/tests
+          else
+            echo "No forecaster/tests directory; skipping pytest."
+          fi
+
+      - name: Run Forecaster (cached)
+        run: |
+          poetry run python run_forecaster.py --mode test_questions --limit 3
 
       - name: Upload artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: spagbot-run-${{ github.run_id }}
+          name: forecaster-run-${{ github.run_id }}
           path: |
             forecast_logs/**
             forecasts.csv
