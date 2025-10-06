@@ -68,3 +68,10 @@ the schema needs to change.
 ### Hermetic connector tests
 Header tests set `RESOLVER_SKIP_IFRCGO=1` and `RESOLVER_SKIP_RELIEFWEB=1` so no network is required.
 Each connector must still produce a CSV with the canonical header (even if empty).
+
+### ReliefWeb PDF tests
+
+`resolver/tests/ingestion/test_reliefweb_pdf.py` monkeypatches the PDF text
+extraction helper so we can exercise parsing, precedence, and delta logic using
+plain strings.  No binary fixtures are required; see
+`resolver/tests/fixtures/reliefweb_pdfs/README.md` for details.

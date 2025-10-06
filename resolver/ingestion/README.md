@@ -11,6 +11,7 @@ Later (Epic C) we will replace stubs with real API/scraper clients.
 ## Sources covered
 
 - ReliefWeb — **API connector** (`reliefweb_client.py`) → `staging/reliefweb.csv`
+- ReliefWeb PDFs — **attachment parser** (`reliefweb_client.py`) → `staging/reliefweb_pdf.csv`
 - IFRC GO — **API connector** (`ifrc_go_client.py`) → `staging/ifrc_go.csv`
 - UNHCR ODP — **API connector** (`unhcr_odp_client.py`) → `staging/unhcr_odp.csv`
 - IOM DTM — **API connector** (`dtm_client.py`) → `staging/dtm_displacement.csv`
@@ -159,11 +160,16 @@ with real pulls in Epic C.
 
 ### ReliefWeb specifics
 
-- Window: last `window_days` (configurable in `ingestion/config/reliefweb.yml`)
-- Filters: English language; report/appeal/update formats
-- Hazards: keyword mapping (conservative)
-- Metrics: PIN preferred (if phrase found), else PA; PHE allows `cases` (unit = persons_cases)
-- No PDF parsing in v1; title/summary only
+- Window: last `window_days` for API text extraction and `since_months` for optional PDF backfills.
+- Filters: English language; report/appeal/update formats.
+- Hazards: keyword mapping (conservative, shared by API + PDF parsing).
+- Metrics: API path prefers PIN > PA > cases; PDF path parses `people_in_need`, `people_affected`, and `idps` with table → infographic → narrative precedence.
+- PDFs: `enable_pdfs` toggles attachment parsing. Text extraction auto-falls back to OCR unless `enable_ocr: false`.
+- Household → people conversions rely on `reference/avg_household_size.csv` + overrides, populating `method_value="derived_from_households"` and `method_details` context.
+- PDF outputs land in `staging/reliefweb_pdf.csv` with `series_semantics="new"` and deterministic `event_id` hashes.
+- Deltas: monthly `value` equals `value_level - previous_level` for the same `(iso3, hazard_code, metric, reliefweb_pdf)` lineage; levels cached in `.cache/reliefweb/levels/`.
+
+See `resolver/docs/reliefweb_pdf.md` for the full PDF parser runbook.
 
 Hazards must match resolver/data/shocks.csv (e.g., FL, DR, TC, HW, ACO, ACE, DI, CU, EC, PHE).
 
