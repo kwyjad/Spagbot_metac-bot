@@ -1,6 +1,6 @@
 enable: false
 base_url: "https://goadmin.ifrc.org/api/v2/"
-user_agent: "pythia-resolver/1.0 (github.com/kwyjad/Pythia)"
+user_agent: "spagbot-resolver/1.0 (github.com/kwyjad/Spagbot_metac-bot)"
 window_days: 45
 page_size: 100
 

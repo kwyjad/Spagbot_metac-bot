@@ -55,12 +55,12 @@ jobs:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       OPENAI_BASE_URL:
 
-      # ---- Forecaster behavior ----
+      # ---- Spagbot behavior ----
       ENABLE_MARKET_SNAPSHOT: "1"
       MARKET_SNAPSHOT_MAX_MATCHES: "10"
       LLM_MAX_CONCURRENCY: "4"
-      FORECASTER_DISABLE_CLASSIFIER_CACHE: "1"
-      FORECASTER_DISABLE_RESEARCH_CACHE: "1"
+      SPAGBOT_DISABLE_CLASSIFIER_CACHE: "1"
+      SPAGBOT_DISABLE_RESEARCH_CACHE: "1"  
 
       # ---- Knobs ----
       RESEARCH_TEMP: "0.10"
@@ -96,7 +96,7 @@ jobs:
       HUMAN_LOG_FLAT:
 
       #GTMC1 Debug
-      FORECASTER_DEBUG_RAW: "1"
+      SPAGBOT_DEBUG_RAW: "1"
 
        # ---- Cost table (string JSON) ----
       MODEL_COSTS_JSON: |
@@ -139,9 +139,9 @@ jobs:
       - name: Install dependencies
         run: poetry sync --no-interaction --no-ansi
 
-      - name: Run Forecaster (Metaculus Cup)
+      - name: Run Spagbot (Metaculus Cup)
         run: |
-          poetry run python run_forecaster.py --mode tournament --limit 20 --submit --purpose metaculus_cup
+          poetry run python run_spagbot.py --mode tournament --limit 20 --submit --purpose metaculus_cup
 
       - name: Commit & push forecasts (only if changed)
         run: |
@@ -178,7 +178,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: forecaster-cup-run-${{ github.run_id }}
+          name: spagbot-cup-run-${{ github.run_id }}
           path: |
             forecast_logs/**
             forecasts.csv
