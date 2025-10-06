@@ -8,7 +8,7 @@
 
 **1) Vision & Goals**
 
-Build a reliable, auditable **database-first** pipeline that ingests humanitarian impact data (PIN/PA) across >130 countries and forecastable shocks, normalizes to a canonical schema, and automatically prepares **resolution-ready** facts for forecasting questions.
+Build a reliable, auditable **database-first** pipeline that ingests humanitarian impact data (PIN/PA) across all countries and forecastable shocks, normalizes to a canonical schema, and automatically prepares **resolution-ready** facts for forecasting questions. The goal is that "Resolver" is able to provide country level monthly snapshots of PIN and PA connected to specfic shock types, e.g., month = januray | country = Sudan | shock type = drought | PIN = 50,000 | PA = 100,000. PIN and PA should be **"new PIN/PA" each month**, i.e. the difference between this month and last, such that we can total sum up month 1,2, and 3 to get impact for months 1-3.
 
 **Success Criteria**
 
