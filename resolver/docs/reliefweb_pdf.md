@@ -1,106 +1,78 @@
-# ReliefWeb PDF ingestion
+# ReliefWeb PDF Pipeline
 
-This document explains how the ReliefWeb PDF extension behaves inside the
-Resolver ingestion pipeline.  The connector augments the classic
-`reliefweb_client.py` API workflow by downloading report attachments, extracting
-figures, and writing them to `staging/reliefweb_pdf.csv` in the canonical facts
-schema.
+The ReliefWeb PDF pipeline augments the classic ReliefWeb API connector by scoring attachments, extracting metrics from PDFs, and emitting tier-2 monthly deltas that fill gaps when higher-tier sources are silent. This page documents the full flow, configuration toggles, file contracts, and test hooks for the branch.
 
-## Overview
+## What the pipeline does
 
-- The connector uses the ReliefWeb API to discover resources that contain
-  `application/pdf` attachments.
-- A heuristic chooses the most relevant PDF per report.  Preferences are defined
-  in the configuration via `preferred_pdf_titles` (e.g. “Situation Report”,
-  “Flash Update”, “Key Figures”).
-- PDFs are downloaded once and cached under `staging/.cache/reliefweb/pdf/`.
-- Text extraction first attempts native text and falls back to OCR when the
-  native layer is sparse.  OCR can be disabled in configuration or during tests.
-- Parsed metrics include `people_in_need`, `people_affected`, and `idps`.  When
-  only household counts are provided, the connector converts them to people
-  using the reference `avg_household_size.csv` file.
-- Output rows are emitted per country with `tier=2`, deterministic `event_id`
-  hashes, and `series_semantics="new"` monthly deltas.  The level value is
-  stored in `value_level` while `value` represents the new monthly value.
+1. **Select candidate PDFs:** `resolver/ingestion/reliefweb_client.py` queries the ReliefWeb API for reports with `application/pdf` attachments. Each attachment receives a heuristic score favouring structured situation reports (`sitreps`, tabular annexes) over infographics or narrative briefs.
+2. **Extract text:** The connector first reads native text layers. When the native layer is sparse (`< min_text_chars_before_ocr`), it falls back to OCR through helpers in [`resolver/ingestion/_pdf_text.py`](../ingestion/_pdf_text.py). OCR can be disabled entirely when testing in minimal environments.
+3. **Parse metrics:** Pattern matchers capture key humanitarian metrics (PIN, PA, IDPs, cases). Household-only figures are converted to people using the people-per-household (PPH) reference. Parsed metrics store the triggering phrase for audit.
+4. **Compute tier-2 deltas:** The connector maintains per-report time series to derive month-over-month "new" values. Tier metadata is stamped as `tier=2` and `series_semantics="new"` before rows leave the connector.
+5. **Publish staging outputs:** Results are written to `resolver/staging/reliefweb_pdf.csv` alongside `reliefweb_pdf.csv.meta.json` manifests containing attachment provenance, selector scores, and extraction modes.
 
-## Configuration
+The pipeline is designed to be hermetic in CI: attachments can be mocked and OCR disabled so the unit tests run without network access.
 
-The ReliefWeb configuration (`ingestion/config/reliefweb.yml`) exposes the
-following keys:
+## Feature toggles and environment flags
 
-| Key | Description | Default |
-| --- | --- | --- |
-| `enable_pdfs` | Toggle PDF parsing | `true` |
-| `enable_ocr` | Allow OCR fallback | `true` |
-| `min_text_chars_before_ocr` | Native text length threshold before OCR | `1500` |
-| `preferred_pdf_titles` | Ordered list of substrings used by the selection heuristic | see config |
-| `since_months` | Look-back window for reports when PDF ingestion is run standalone | `6` |
+| Variable | Purpose | Default |
+|---|---|---|
+| `RELIEFWEB_ENABLE_PDF=1|0` | Enable/disable the PDF branch | `0` in CI, `1` locally when testing |
+| `RELIEFWEB_PDF_ENABLE_OCR=1|0` | Allow OCR fallback when native text is insufficient | `1` |
+| `RELIEFWEB_PDF_ALLOW_NETWORK=1|0` | Permit live attachment downloads | `0` in CI |
+| `RELIEFWEB_PPH_OVERRIDE_PATH=/path/to/file.csv` | Supply a custom PPH lookup table | unset |
 
-To disable OCR entirely, set `enable_ocr: false`.  Tests can also monkeypatch
-`resolver.ingestion._pdf_text.PDF_TEXT_TEST_MODE` to avoid heavyweight OCR.
+Additional knobs live in [`ingestion/config/reliefweb.yml`](../ingestion/config/reliefweb.yml), including `preferred_pdf_titles`, language filters, and `min_text_chars_before_ocr`.
 
-## People-per-household (PPH)
+## File contracts
 
-Household → people conversions use `reference/avg_household_size.csv` merged with
-overrides from `reference/overrides/avg_household_size_overrides.yml`.  The
-lookup returns the best match for an ISO3 code and falls back to a global
-default of `4.5` people per household.  The chosen value is surfaced via the
-`method_details` column (`PPH=<value>, source=<source>, year=<year>`).
+### Staging CSV (`resolver/staging/reliefweb_pdf.csv`)
 
-To override PPH values for a project, edit the overrides YAML file, e.g.:
-
-```yaml
-overrides:
-  USA:
-    people_per_household: 2.60
-    source: "Custom Study"
-    year: 2024
-    notes: "Hurricane-specific household composition"
-```
-
-## Date logic and deltas
-
-The connector extracts an `as_of_date` from the PDF by prioritising:
-
-1. Coverage or reporting period end dates (`Reporting period: 01–31 Aug 2025`).
-2. A `Report date:` field in the document body.
-3. ReliefWeb metadata timestamps.
-
-Monthly deltas follow Resolver’s standard rule: compare the current level value
-with the previous level for the same `(iso3, hazard_code, metric, source_family`
-=`reliefweb_pdf`) lineage.  Level history is cached under
-`staging/.cache/reliefweb/levels/levels.json`.
-
-## Output schema
-
-`staging/reliefweb_pdf.csv` uses the following columns:
+Minimum columns:
 
 ```
-event_id,country_name,iso3,hazard_code,hazard_label,hazard_class,
-metric,series_semantics,value,unit,value_level,as_of_date,month_start,
-publication_date,publisher,source_type,source_url,resource_url,doc_title,
-definition_text,method,method_value,method_details,extraction_layer,
-matched_phrase,tier,confidence,revision,ingested_at
+as_of,source,event_id,country_iso3,month,hazard_type,metric,value,pph_used,
+extraction_method,matched_phrase,pdf_score,method,method_value,series_semantics,
+tier,confidence,publication_date,source_url,resource_url,definition_text
 ```
 
-- `value` is the monthly new figure.
-- `value_level` stores the level extracted from the PDF.
-- `method_value` captures whether the figure was reported directly or derived
-  from households.
-- `method_details` records PPH and extraction hints.
-- `extraction_layer` identifies the winning parsing layer (`table`,
-  `infographic`, `narrative`).
+- `pph_used` records the multiplier applied during household → people conversion.
+- `extraction_method` is `pdf_native` or `ocr` depending on the winning layer.
+- `pdf_score` surfaces the selector confidence.
+- `series_semantics` is always `new`; the connector already differences level values into monthly deltas.
+- `tier` is fixed to `2` so precedence understands the branch hierarchy.
 
-Each PDF run updates the manifest via `reliefweb_pdf.csv.meta.json` and logs the
-row count in the CLI output.
+### Manifest (`resolver/staging/reliefweb_pdf.csv.meta.json`)
 
-## Troubleshooting
+Adds attachment-level provenance:
 
-- **OCR performance:** when OCR is unexpectedly triggered, increase
-  `min_text_chars_before_ocr` or disable OCR.
-- **Ambiguous multi-country totals:** the parser skips values that cannot be
-  allocated to a single country.  Check logs for `ambiguous_allocation` notes.
-- **Missing PPH:** add ISO3 values to `avg_household_size.csv` or the overrides
-  file.  Without an entry the global default (4.5) is used.
-- **Caching:** remove `staging/.cache/reliefweb/pdf/` to force re-download of
-  PDFs and `staging/.cache/reliefweb/levels/` to reset monthly deltas.
+- `artifact_sha256` and `artifact_path` for cached PDFs
+- `pdf_score` mirroring the CSV
+- `extraction_method` per record
+- Selector rationale (`selector_notes`, `language`, `file_size_bytes`)
+
+These fields power audit trails in precedence diagnostics.
+
+## Heuristics summary
+
+- **Attachment preference:** tables and structured situation reports outrank narrative briefs or infographics unless explicit keywords elevate them.
+- **Language filters:** defaults favour English and UN working languages; others are skipped unless `allowed_languages` is configured.
+- **File size caps:** attachments above the configured size threshold are skipped to avoid large OCR jobs.
+- **Deduplication:** once an attachment is parsed it is cached under `resolver/staging/.cache/reliefweb/pdf/` to prevent repeated downloads.
+
+## Delta logic
+
+The connector tracks series by `(event_id, country_iso3, hazard_type, metric)` and compares the current level value to the previous level for the same lineage. When a report restates a level with no change the monthly delta resolves to zero and is emitted with `value=0`. Rebasings (large negative swings) trigger `method_details` notes and clamp to zero to avoid negative deltas.
+
+## Testing hooks
+
+- **Unit tests:** `pytest -q resolver/tests/ingestion/test_reliefweb_pdf.py` monkeypatches OCR and network calls so parsing logic runs against inline text fixtures.
+- **Manual dry run:**
+  ```bash
+  RELIEFWEB_ENABLE_PDF=1 \
+  RELIEFWEB_PDF_ALLOW_NETWORK=0 \
+  RELIEFWEB_PDF_ENABLE_OCR=0 \
+  python resolver/ingestion/reliefweb_client.py --limit 5
+  ```
+- **Schema checks:** `pytest -q resolver/tests/test_staging_schema_all.py` confirms the CSV header matches `schema.yml` (including `pph_used`, `extraction_method`, and `pdf_score`).
+
+For additional operational guidance see the [run book](operations.md) and [troubleshooting guide](troubleshooting.md).

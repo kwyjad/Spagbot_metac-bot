@@ -8,6 +8,8 @@ These tests enforce basic contracts across:
 - Snapshots (`resolver/snapshots/YYYY-MM/facts.parquet`), if present
 - Remote-first state files under `resolver/state/**/exports/*.csv`
 
+Mermaid diagrams in the docs (e.g., `resolver/docs/pipeline_overview.md`) render automatically on GitHub; view them there for the most up-to-date flow visuals.
+
 ## Run locally (cross-platform)
 
 First install dev requirements:
@@ -75,3 +77,9 @@ Each connector must still produce a CSV with the canonical header (even if empty
 extraction helper so we can exercise parsing, precedence, and delta logic using
 plain strings.  No binary fixtures are required; see
 `resolver/tests/fixtures/reliefweb_pdfs/README.md` for details.
+
+### Running PDF unit tests (mocked)
+
+```bash
+pytest -q resolver/tests/ingestion/test_reliefweb_pdf.py
+```
