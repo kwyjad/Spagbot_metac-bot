@@ -81,6 +81,29 @@ Get-Content resolver/staging/ifrc_go.csv | Select-Object -First 3   # PowerShell
 The smoke tests expect each connector to exit `0`, emit a header-only CSV in
 `resolver/staging/`, and log a clear reason that it is disabled/placeholder/header-only.
 
+## ReliefWeb PDF pipeline (tests & toggles)
+
+### Environment flags
+
+- `RELIEFWEB_ENABLE_PDF` — enable the PDF attachment pipeline (default: on in tests).
+- `RELIEFWEB_PDF_ENABLE_OCR` — allow OCR fallback for image-based attachments (default: off in smoke tests).
+- `RELIEFWEB_PDF_ALLOW_NETWORK` — permit live PDF downloads (default: off in CI/tests; smoke writes headers only).
+
+### Outputs
+
+- `resolver/staging/reliefweb_pdf.csv` — PDF-derived tier-2 metrics with monthly deltas.
+- `resolver/staging/reliefweb.csv` — API-derived tier-1 metrics.
+
+### Testing locally
+
+```bash
+# Offline smoke across all connectors (header-only, no network)
+pytest -q resolver/tests/test_ingestion_smoke_all_connectors.py
+
+# ReliefWeb PDF logic with mocked extractors (selection, conversion, deltas, precedence)
+pytest -q resolver/tests/ingestion/test_reliefweb_pdf.py
+```
+
 ## Run all stubs
 
 ```bash

@@ -19,7 +19,14 @@ STAGING_DIR = REPO_ROOT / "resolver" / "staging"
 LOG_DIR = REPO_ROOT / "logs" / "ingestion_test"
 SENTINEL_ENV_PATH = Path(__file__).resolve().parent / "fixtures" / "offline_sentinel.env"
 
-LOG_KEYWORDS = ("disabled", "placeholder", "header-only")
+LOG_KEYWORDS = (
+    "disabled",
+    "placeholder",
+    "header-only",
+    "pdf disabled",
+    "pdf placeholder",
+    "pdf header-only",
+)
 AS_OF_ALIASES = {"as_of", "as_of_date", "as_of_month", "as_of_timestamp", "as_of_iso"}
 SOURCE_ALIASES = {"source", "source_url", "source_type", "source_event_id", "publisher"}
 DATE_ALIASES = {"date", "month", "as_of", "as_of_date", "publication_date", "download_date", "year"}
@@ -61,6 +68,21 @@ STAGING_FILE_OVERRIDES: Dict[str, str] = {
 }
 
 ALLOW_NONZERO_EXIT = {"emdat"}
+
+RELIEFWEB_PDF_REQUIRED_EXACT = {"event_id", "metric", "value"}
+RELIEFWEB_PDF_REQUIRED_ALIASES = {
+    "as_of": AS_OF_ALIASES,
+    "source": SOURCE_ALIASES,
+    "country_iso3": {"country_iso3", "iso3"},
+    "month": {"month", "month_start"},
+    "hazard_type": {"hazard_type", "hazard_code", "hazard_label", "hazard_class"},
+}
+RELIEFWEB_PDF_STAGING_NAME = "reliefweb_pdf.csv"
+RELIEFWEB_PDF_LOG_KEYWORDS = (
+    "pdf disabled",
+    "pdf placeholder",
+    "pdf header-only",
+)
 
 def _dataset_name(connector_path: Path) -> str:
     name = connector_path.stem
@@ -117,6 +139,14 @@ def _build_child_env(dataset: str) -> Dict[str, str]:
         paths.append(pythonpath)
     env["PYTHONPATH"] = os.pathsep.join(paths)
     env.update(SKIP_ENV_OVERRIDES.get(dataset, {}))
+    if dataset == "reliefweb":
+        env.update(
+            {
+                "RELIEFWEB_ENABLE_PDF": "1",
+                "RELIEFWEB_PDF_ALLOW_NETWORK": "0",
+                "RELIEFWEB_PDF_ENABLE_OCR": "0",
+            }
+        )
     return env
 
 
@@ -139,6 +169,23 @@ def _format_missing(dataset: str, missing: Iterable[str], header: Iterable[str])
 def _assert_header(dataset: str, header: List[str]) -> None:
     header_lower = [col.strip().lower() for col in header if col.strip()]
     header_set = set(header_lower)
+    if dataset == "reliefweb_pdf":
+        missing_exact = [
+            col for col in sorted(RELIEFWEB_PDF_REQUIRED_EXACT) if col not in header_set
+        ]
+        if missing_exact:
+            pytest.fail(_format_missing(dataset, missing_exact, header))
+
+        missing_aliases = []
+        for column, aliases in RELIEFWEB_PDF_REQUIRED_ALIASES.items():
+            lowered_aliases = {alias.lower() for alias in aliases}
+            if not (header_set & lowered_aliases):
+                missing_aliases.append(column)
+
+        if missing_aliases:
+            pytest.fail(_format_missing(dataset, missing_aliases, header))
+        return
+
     if dataset in KNOWN_MIN_HEADERS:
         expected = {col.lower() for col in KNOWN_MIN_HEADERS[dataset]}
         missing = [col for col in expected if col not in header_set]
@@ -181,9 +228,25 @@ def _collect_new_logs(start_time: float) -> List[Path]:
     return sorted(fresh, key=lambda p: p.stat().st_mtime)
 
 
-def _log_has_keywords(content: str) -> bool:
+def _log_has_keywords(content: str, keywords: Iterable[str] = LOG_KEYWORDS) -> bool:
     lowered = content.lower()
-    return any(keyword in lowered for keyword in LOG_KEYWORDS)
+    return any(keyword in lowered for keyword in keywords)
+
+
+def _search_outputs_for_keywords(
+    logs: Iterable[Path], stdout: str, stderr: str, keywords: Iterable[str]
+) -> bool:
+    for log in logs:
+        try:
+            content = log.read_text(encoding="utf-8")
+        except FileNotFoundError:
+            continue
+        if _log_has_keywords(content, keywords):
+            return True
+    combined = f"{stdout}\n{stderr}".strip()
+    if combined and _log_has_keywords(combined, keywords):
+        return True
+    return False
 
 
 @pytest.mark.parametrize("connector_path", CONNECTOR_PATHS, ids=CONNECTOR_IDS)
@@ -194,6 +257,12 @@ def test_ingestion_connector_offline_smoke(connector_path: Path) -> None:
     staging_file.parent.mkdir(parents=True, exist_ok=True)
     if staging_file.exists():
         staging_file.unlink()
+
+    reliefweb_pdf_file: Path | None = None
+    if dataset == "reliefweb":
+        reliefweb_pdf_file = STAGING_DIR / RELIEFWEB_PDF_STAGING_NAME
+        if reliefweb_pdf_file.exists():
+            reliefweb_pdf_file.unlink()
 
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     start_time = time.time()
@@ -226,21 +295,21 @@ def test_ingestion_connector_offline_smoke(connector_path: Path) -> None:
     header = _read_header(staging_file)
     _assert_header(dataset, header)
 
-    logs = _collect_new_logs(start_time)
-    indicator_found = False
-    for log in logs:
-        try:
-            content = log.read_text(encoding="utf-8")
-        except FileNotFoundError:
-            continue
-        if _log_has_keywords(content):
-            indicator_found = True
-            break
+    if dataset == "reliefweb":
+        assert (
+            reliefweb_pdf_file is not None and reliefweb_pdf_file.exists()
+        ), "reliefweb: expected staging file reliefweb_pdf.csv"
+        pdf_header = _read_header(reliefweb_pdf_file)
+        _assert_header("reliefweb_pdf", pdf_header)
 
-    if not indicator_found:
-        combined = f"{result.stdout}\n{result.stderr}".strip()
-        if combined and _log_has_keywords(combined):
-            indicator_found = True
+    logs = _collect_new_logs(start_time)
+    indicator_found = _search_outputs_for_keywords(
+        logs, result.stdout, result.stderr, LOG_KEYWORDS
+    )
+    if dataset == "reliefweb":
+        indicator_found = indicator_found or _search_outputs_for_keywords(
+            logs, result.stdout, result.stderr, RELIEFWEB_PDF_LOG_KEYWORDS
+        )
 
     if not indicator_found:
         warnings.warn(
