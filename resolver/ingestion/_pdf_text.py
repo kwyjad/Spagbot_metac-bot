@@ -184,11 +184,36 @@ def smart_extract(content_bytes: bytes, min_chars: int = 1500) -> Tuple[str, Dic
     if not ocr_text:
         return native_text, meta
 
+    def _split_ocr_text(text: str, expected: int) -> Optional[List[str]]:
+        """Split concatenated OCR output into page-aligned chunks."""
+
+        if expected <= 1:
+            return [text]
+
+        # ``pytesseract`` terminates each page with a ``\f`` character.  We
+        # leverage that to recover page boundaries.  When the delimiter is not
+        # present (for example when using a custom extractor), we fall back to a
+        # single chunk so that the caller can handle the mismatch gracefully.
+        chunks = text.rstrip("\f").split("\f")
+        if len(chunks) != expected:
+            return None
+        return chunks
+
+    per_page_ocr: Dict[int, str] = {}
+    ocr_chunks = _split_ocr_text(ocr_text, len(pages_to_ocr))
+    if ocr_chunks is None:
+        # Fallback: we could not confidently split the OCR output.  Re-run OCR
+        # for each target page individually to avoid duplicating the combined
+        # text while preserving correctness.  ``ocr_pdf_bytes`` already applies
+        # logging and any monkeypatched behaviour, so we reuse it here.
+        for page_idx in pages_to_ocr:
+            per_page_ocr[page_idx] = ocr_pdf_bytes(content_bytes, page_mask=[page_idx])
+    else:
+        per_page_ocr = dict(zip(pages_to_ocr, ocr_chunks))
+
     combined = []
     for idx, page_text in enumerate(page_texts):
-        if idx in pages_to_ocr:
-            combined.append(ocr_text)
-        combined.append(page_text)
+        combined.append(per_page_ocr.get(idx, page_text))
     merged_text = "\n".join(filter(None, combined)) or ocr_text
 
     meta.update({"method": "hybrid", "chars": len(merged_text), "pages_ocrd": pages_to_ocr})
