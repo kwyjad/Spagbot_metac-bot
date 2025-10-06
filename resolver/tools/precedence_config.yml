@@ -3,7 +3,7 @@ metric_preference: [in_need, affected]   # PIN first, else PA
 tiers:
   - ["unhcr_api", "unhcr_odp", "ifrc_go", "who", "ipc", "wfp_mvam", "dtm", "acled"]
   - ["hdx", "emdat", "gdacs"]
-  - ["reliefweb", "media"]
+  - ["reliefweb", "reliefweb_pdf", "media"]  # reliefweb_pdf stays Tier 2 (same as ReliefWeb API)
 source_precedence:                       # highest → lowest (legacy policy tiers)
   - inter_agency_plan
   - ifrc_or_gov_sitrep

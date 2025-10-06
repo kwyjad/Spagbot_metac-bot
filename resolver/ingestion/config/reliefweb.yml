@@ -3,6 +3,20 @@ appname: "UNICEF-Resolver-P1L1T6"
 user_agent: "UNICEF-Resolver-P1L1T6/1.0 (+https://unicef.org/emops; contact=resolver@unicef.org)"
 base_url: "https://api.reliefweb.int/v2/reports"
 accept_header: "application/json"
+enable_pdfs: true
+enable_ocr: true
+min_text_chars_before_ocr: 1500
+since_months: 6
+preferred_pdf_titles:
+  - "situation report"
+  - "sitrep"
+  - "flash report"
+  - "flash update"
+  - "snapshot"
+  - "appeal"
+  - "humanitarian update"
+  - "key figures"
+  - "response update"
 max_retries: 6
 retry_backoff_seconds: 2
 timeout_seconds: 30
