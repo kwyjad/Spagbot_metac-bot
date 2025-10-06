@@ -42,3 +42,6 @@ jobs:
       - name: Connector Smoke (offline)
         run: |
           pytest -q resolver/tests/test_ingestion_smoke_all_connectors.py
+      - name: ReliefWeb PDF Unit Tests (mocked extractors)
+        run: |
+          pytest -q resolver/tests/ingestion/test_reliefweb_pdf.py
