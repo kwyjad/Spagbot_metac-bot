@@ -49,33 +49,33 @@ jobs:
         continue-on-error: true
         run: |
           python - <<'PY'
-import pathlib
-import re
-import sys
+          import pathlib
+          import re
+          import sys
 
-root = pathlib.Path('.').resolve()
-md_files = [p for p in root.glob('resolver/**/*.md')]
-pattern = re.compile(r'\[[^\]]+\]\(([^)]+)\)')
-broken = []
+          root = pathlib.Path('.').resolve()
+          md_files = [p for p in root.glob('resolver/**/*.md')]
+          pattern = re.compile(r'\[[^\]]+\]\(([^)]+)\)')
+          broken = []
 
-for md in md_files:
-    text = md.read_text(encoding='utf-8')
-    for match in pattern.finditer(text):
-        link = match.group(1)
-        if link.startswith(('http://', 'https://', 'mailto:')):
-            continue
-        if link.startswith('#') or link.startswith('?'):
-            continue
-        target_str = link.split('#', 1)[0]
-        target_path = (md.parent / target_str).resolve()
-        if not target_path.exists():
-            broken.append(f"{md.relative_to(root)} -> {link}")
+          for md in md_files:
+              text = md.read_text(encoding='utf-8')
+              for match in pattern.finditer(text):
+                  link = match.group(1)
+                  if link.startswith(('http://', 'https://', 'mailto:')):
+                      continue
+                  if link.startswith('#') or link.startswith('?'):
+                      continue
+                  target_str = link.split('#', 1)[0]
+                  target_path = (md.parent / target_str).resolve()
+                  if not target_path.exists():
+                      broken.append(f"{md.relative_to(root)} -> {link}")
 
-if broken:
-    print('Broken Markdown links found:')
-    for item in broken:
-        print(f" - {item}")
-    sys.exit(1)
-else:
-    print('No broken intra-repo Markdown links found.')
-PY
+          if broken:
+              print('Broken Markdown links found:')
+              for item in broken:
+                  print(f" - {item}")
+              sys.exit(1)
+          else:
+              print('No broken intra-repo Markdown links found.')
+          PY
