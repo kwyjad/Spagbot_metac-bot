@@ -37,7 +37,7 @@ COUNTRIES_CSV = DATA / "countries.csv"
 OUT_PATH = STAGING / "unhcr_odp.csv"
 BASE = "https://data.unhcr.org"
 DEFAULT_SITUATION_PATH = "/en/situations/europe-sea-arrivals"
-UA = "pythia-resolver/1.0 (github.com/kwyjad/Pythia)"
+UA = "spagbot-resolver/1.0 (github.com/kwyjad/Spagbot_metac-bot)"
 
 CANONICAL_HEADER = [
     "source",

@@ -1,4 +1,4 @@
-# forecaster/providers.py
+# spagbot/providers.py
 from __future__ import annotations
 """
 providers.py — unified access to OpenRouter, direct Gemini, and direct Grok.

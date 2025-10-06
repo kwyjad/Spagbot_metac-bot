@@ -1,6 +1,6 @@
 # io_logs.py
 # =============================================================================
-# Forecaster logging utilities:
+# Spagbot logging utilities:
 # - Append-only forecasts CSV
 # - Human-readable run logs (.md or .txt)
 # - Optional git commit/push of changed logs (works nicely in GitHub Actions)
@@ -28,11 +28,11 @@
 #       HUMAN_LOG_EXT        default: "md"   (use "txt" if you prefer)
 #       DISABLE_GIT_LOGS     default: ""     (set "1"/"true" to skip commits in CI)
 #       COMMIT_LOGS          default: ""     (set "1"/"true" locally to commit)
-#       GIT_LOG_MESSAGE      default: "chore(logs): update Forecaster logs"
+#       GIT_LOG_MESSAGE      default: "chore(logs): update Spagbot logs"
 #       GIT_REMOTE_NAME      default: "origin"
 #       GIT_BRANCH_NAME      default: (auto-detect; falls back to "main")
 #
-# This module is intentionally standalone and does not import other forecaster
+# This module is intentionally standalone and does not import other spagbot
 # modules to avoid circular imports.
 # =============================================================================
 
@@ -279,7 +279,7 @@ def _ensure_git_identity(repo: Path) -> None:
         email = _run(["git", "config", "--get", "user.email"], cwd=repo, check=False).stdout.strip()
         if not name:
             # Prefer GitHub actor if available
-            gh_actor = os.getenv("GITHUB_ACTOR", "forecaster-bot")
+            gh_actor = os.getenv("GITHUB_ACTOR", "spagbot-bot")
             _run(["git", "config", "user.name", gh_actor], cwd=repo, check=False)
         if not email:
             # Use GitHub Actions bot email if none provided
@@ -357,7 +357,7 @@ def commit_and_push_logs(changed_paths: Iterable[Path], commit_message: Optional
         # If this check fails, attempt commit anyway.
         pass
 
-    message = commit_message or os.getenv("GIT_LOG_MESSAGE", "chore(logs): update Forecaster logs")
+    message = commit_message or os.getenv("GIT_LOG_MESSAGE", "chore(logs): update Spagbot logs")
     try:
         _run(["git", "commit", "-m", message], cwd=repo, check=True)
     except subprocess.CalledProcessError:

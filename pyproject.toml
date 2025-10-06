@@ -1,13 +1,10 @@
 [tool.poetry]
-name = "pythia"
+name = "metac-bot-template"
 version = "0.1.0"
-description = "Unified resolver data pipeline and forecaster engine"
+description = ""
 authors = ["Vasile Popescu <elisescu@elisescu.com>"]
 readme = "README.md"
-packages = [
-    { include = "resolver" },
-    { include = "forecaster" },
-]
+package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.11"
@@ -21,9 +18,6 @@ forecasting-tools = "^0.2.54"
 
 [tool.poetry.group.dev.dependencies]
 ipykernel = "^6.29.5"
-
-[tool.poetry.scripts]
-forecaster = "forecaster.cli:main"
 
 [build-system]
 requires = ["poetry-core"]
