@@ -7,6 +7,7 @@
 - The natural key for `facts_resolved` is `(ym, iso3, hazard_code, metric, series_semantics)`.
 - `series_semantics` values are canonicalised *before* duplicate rows are dropped; all values map to the set `"" | "new" | "stock"` after trimming and normalising case.
 - Snapshot writes perform a month-scoped delete on `facts_resolved` and, when present, `facts_deltas` before new rows are inserted.
+- Upserts explicitly list target columns in `INSERT` statements to avoid column-order mismatches when DataFrame columns are reordered.
 
 ## Table of contents
 
