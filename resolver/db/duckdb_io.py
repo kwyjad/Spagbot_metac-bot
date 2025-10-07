@@ -144,6 +144,16 @@ def upsert_dataframe(
             )
             prepared = prepared.drop(columns=drop_list)
 
+    table_columns = [
+        row[0]
+        for row in conn.execute("SELECT name FROM pragma_table_info(?)", [table]).fetchall()
+    ]
+    insert_columns = [column for column in prepared.columns if column in table_columns]
+    if not insert_columns:
+        raise ValueError(
+            f"No overlapping columns between prepared frame and DuckDB table {table!r}"
+        )
+
     temp_name = _register_temp_table(conn, prepared)
 
     key_predicates = [
@@ -159,7 +169,10 @@ def upsert_dataframe(
         f'DELETE FROM "{table}" AS t '
         f'WHERE EXISTS (SELECT 1 FROM "{temp_name}" AS s WHERE {where_clause})'
     )
-    insert_query = f'INSERT INTO "{table}" SELECT * FROM "{temp_name}"'
+    columns_csv = ", ".join(f'"{column}"' for column in insert_columns)
+    insert_query = (
+        f'INSERT INTO "{table}" ({columns_csv}) SELECT {columns_csv} FROM "{temp_name}"'
+    )
 
     try:
         count = conn.execute(count_query).fetchone()[0]
