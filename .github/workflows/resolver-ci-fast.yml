@@ -75,7 +75,7 @@ jobs:
       - name: Run DuckDB tests
         env:
           RESOLVER_DB_URL: duckdb:///${{ runner.temp }}/resolver.ci.duckdb
-        run: python -m pytest -q resolver/tests/test_db_parity.py resolver/tests/test_duckdb_idempotency.py
+        run: python -m pytest -q resolver/tests -k "duckdb or snapshot"
 
   smoke_connectors:
     if: ${{ !contains(github.event.head_commit.message || '', '[skip-ci]') }}
