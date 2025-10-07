@@ -1,24 +1,21 @@
 #!/usr/bin/env python3
-"""
-freeze_snapshot.py — validate and freeze a monthly snapshot for the resolver.
+"""freeze_snapshot.py — validate and freeze a monthly snapshot.
 
-Example:
-  python resolver/tools/freeze_snapshot.py \
-      --facts resolver/samples/facts_sample.csv \
-      --month 2025-09
-
-What it does:
-  1) Validates the input "facts" table using validate_facts.py and your registries.
-  2) Writes a Parquet snapshot to resolver/snapshots/YYYY-MM/facts.parquet
-  3) Writes a manifest.json with created_at_utc and source_commit_sha (if available)
-
-Notes:
-  - Accepts CSV or Parquet as input.
-  - If --month is omitted, uses current UTC year-month.
-  - Never mutates existing snapshots; you may overwrite only by passing --overwrite.
+In addition to the historical filesystem output (Parquet facts, optional
+deltas and a JSON manifest) the freezer can write directly to DuckDB when a
+``RESOLVER_DB_URL`` is provided.  All DuckDB writes are channelled through
+``resolver.db.duckdb_io.write_snapshot`` so that canonicalisation and
+delete/insert behaviour remains consistent between the exporter and the
+freezer.
 """
 
-import argparse, os, sys, json, subprocess, datetime as dt, shutil
+import argparse
+import datetime as dt
+import json
+import os
+import shutil
+import subprocess
+import sys
 from pathlib import Path
 
 try:
@@ -31,6 +28,11 @@ ROOT = Path(__file__).resolve().parents[1]      # .../resolver
 TOOLS = ROOT / "tools"
 SNAPSHOTS = ROOT / "snapshots"
 VALIDATOR = TOOLS / "validate_facts.py"
+
+try:
+    from resolver.db import duckdb_io
+except Exception:  # pragma: no cover - optional when DuckDB isn't available
+    duckdb_io = None  # type: ignore[assignment]
 
 def run_validator(facts_path: Path) -> None:
     """Invoke the validator script as a subprocess for simplicity."""
@@ -59,6 +61,39 @@ def write_parquet(df: pd.DataFrame, out_path: Path) -> None:
         if df[c].dtype.name not in ("float64","int64","bool"):
             df[c] = df[c].astype(str)
     df.to_parquet(out_path, index=False)
+
+
+def _maybe_write_db(
+    ym: str,
+    facts_df: pd.DataFrame,
+    deltas_df: pd.DataFrame | None,
+    manifest: dict,
+    *,
+    db_url: str | None = None,
+) -> None:
+    """Write the snapshot payload to DuckDB when configured."""
+
+    if duckdb_io is None:
+        return
+
+    db_url = db_url or os.environ.get("RESOLVER_DB_URL")
+    if not db_url:
+        return
+
+    manifests_df = pd.DataFrame([manifest])
+    meta = {
+        "git_sha": manifest.get("source_commit_sha") or os.environ.get("GITHUB_SHA", ""),
+        "export_version": manifest.get("source_commit_sha", ""),
+        "rows": manifest.get("rows", 0),
+    }
+    duckdb_io.write_snapshot(
+        db_url,
+        ym,
+        facts_df,
+        facts_deltas=deltas_df,
+        manifests=manifests_df,
+        meta=meta,
+    )
 
 def main():
     ap = argparse.ArgumentParser()
@@ -131,7 +166,12 @@ def main():
         json.dump(manifest, f, indent=2)
 
     if deltas_path:
+        deltas_df = load_table(deltas_path)
         shutil.copy2(deltas_path, deltas_out)
+    else:
+        deltas_df = None
+
+    _maybe_write_db(ym, df, deltas_df, manifest)
 
     print(f"✅ Snapshot written:\n - {facts_out}\n - {manifest_out}")
     if deltas_out:
