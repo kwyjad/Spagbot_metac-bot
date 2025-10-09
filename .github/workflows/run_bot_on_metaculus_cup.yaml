@@ -163,10 +163,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Abort any in-progress merge or rebase (no-ops if none)
+          # Abort any in-progress merge (no-op if none)
           git merge --abort 2>/dev/null || true
-          git rebase --abort 2>/dev/null || true
-          git am --abort 2>/dev/null || true
           # If there are unmerged files, clean them so the logs commit can proceed
           if git diff --name-only --diff-filter=U | grep . >/dev/null 2>&1; then
             echo "Found unmerged files; resetting worktree to HEAD to avoid CI deadlock."
