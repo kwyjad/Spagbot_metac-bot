@@ -79,10 +79,22 @@ dmypy.json
 cython_debug/
 
 # --- Forecast data produced locally ---
-# Ignore all of forecast_logs except runs/
+# Ignore everything under forecast_logs by default
 forecast_logs/*
+
+# Allow human-readable per-run logs to be committed (markdown or text)
 !forecast_logs/runs/
 !forecast_logs/runs/**
+!forecast_logs/runs/**/*.md
+!forecast_logs/runs/**/*.txt
+
+# Explicitly re-ignore lock/state/tmp artifacts even if globbed
+forecast_logs/locks/
+forecast_logs/state/
+forecast_logs/**/*.tmp
+
+# Never track a root-level forecasts.csv (old location that caused conflicts)
+forecasts.csv
 
 # Ignore GTMC logs
 gtmc_logs/
