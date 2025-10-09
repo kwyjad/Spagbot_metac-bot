@@ -159,6 +159,22 @@ jobs:
           git pull --rebase origin "${GIT_BRANCH_NAME:-main}" || true
           git push origin "HEAD:${GIT_BRANCH_NAME:-main}"
 
+      - name: Pre-clean repo before committing logs
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Abort any in-progress merge or rebase (no-ops if none)
+          git merge --abort 2>/dev/null || true
+          git rebase --abort 2>/dev/null || true
+          git am --abort 2>/dev/null || true
+          # If there are unmerged files, clean them so the logs commit can proceed
+          if git diff --name-only --diff-filter=U | grep . >/dev/null 2>&1; then
+            echo "Found unmerged files; resetting worktree to HEAD to avoid CI deadlock."
+            git reset --hard HEAD
+          fi
+          # Ensure advice about adding ignored files doesn't spam logs
+          git config advice.addIgnoredFile false
+
       - name: Commit logs (if changed)
         run: |
           set -euo pipefail

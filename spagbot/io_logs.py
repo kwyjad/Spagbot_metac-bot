@@ -322,6 +322,19 @@ def commit_and_push_logs(changed_paths: Iterable[Path], commit_message: Optional
     if not should_commit:
         return False
 
+    # If repo has unmerged paths (conflicts), skip committing logs entirely.
+    try:
+        unmerged_proc = _run(["git", "diff", "--name-only", "--diff-filter=U"], cwd=repo, check=False)
+    except Exception:
+        return False
+    unmerged = (unmerged_proc.stdout or "").strip()
+    if unmerged:
+        print(f"[logs] skip commit: unmerged files present:\n{unmerged}")
+        return False
+    if unmerged_proc.returncode not in (0,):
+        # Unexpected failure; play it safe and skip committing.
+        return False
+
     # Prepare paths relative to repo root
     rel_paths = []
     for p in changed_paths:
@@ -330,6 +343,9 @@ def commit_and_push_logs(changed_paths: Iterable[Path], commit_message: Optional
         except ValueError:
             # If the path is outside the repo (e.g., different drive), skip it
             continue
+        # Never commit raw CSV unless explicitly whitelisted by caller
+        if rel.name == "forecasts.csv" and "runs" not in rel.parts:
+            continue
         rel_paths.append(rel)
 
     if not rel_paths:
@@ -337,9 +353,10 @@ def commit_and_push_logs(changed_paths: Iterable[Path], commit_message: Optional
 
     _ensure_git_identity(repo)
 
-    # git add
+    # git add (force add, in case paths are ignored by .gitignore but intentionally whitelisted)
     try:
-        _run(["git", "add"] + [str(p) for p in rel_paths], cwd=repo, check=True)
+        _run(["git", "config", "advice.addIgnoredFile", "false"], cwd=repo, check=False)
+        _run(["git", "add", "-f"] + [str(p) for p in rel_paths], cwd=repo, check=True)
     except subprocess.CalledProcessError as e:
         # If 'add' fails, just bail out quietly
         return False
