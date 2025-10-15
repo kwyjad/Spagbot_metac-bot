@@ -88,13 +88,20 @@ forecast_logs/*
 !forecast_logs/runs/**/*.md
 !forecast_logs/runs/**/*.txt
 
-# Explicitly re-ignore lock/state/tmp artifacts even if globbed
-forecast_logs/locks/
-forecast_logs/state/
+# Track aggregated forecasts so dashboards can read from Git
+!forecast_logs/forecasts.csv
+
+# Optionally keep state/lock directories in Git (no-op if absent)
+!forecast_logs/state/
+!forecast_logs/state/**
+!forecast_logs/locks/
+!forecast_logs/locks/**
+
+# Ignore transient tmp artifacts under forecast logs
 forecast_logs/**/*.tmp
 
 # Never track a root-level forecasts.csv (old location that caused conflicts)
-forecasts.csv
+/forecasts.csv
 
 # Ignore GTMC logs
 gtmc_logs/
