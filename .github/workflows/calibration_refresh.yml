@@ -75,13 +75,31 @@ jobs:
       - name: Refresh calibration (pull resolutions and update weights)
         run: poetry run python update_calibration.py
 
-      - name: Commit updated forecasts
+      - name: Commit forecast artifacts (if changed)
         run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -f Dashboard/data/forecasts.parquet forecasts.csv
-          git commit -m "chore(ci): update forecasts [skip ci]" || echo "No changes"
-          git push
+
+          # Only add artifacts that exist (the CSV path lives under forecast_logs/)
+          if [ -f forecast_logs/forecasts.csv ]; then
+            git add forecast_logs/forecasts.csv
+          else
+            echo "No forecasts CSV found; skipping add."
+          fi
+
+          if [ -f Dashboard/data/forecasts.parquet ]; then
+            git add -f Dashboard/data/forecasts.parquet
+          else
+            echo "No dashboard parquet found; skipping add."
+          fi
+
+          if git diff --cached --quiet; then
+            echo "No forecast artifacts changed."
+          else
+            git commit -m "chore(ci): update forecasts [skip ci]"
+            git push
+          fi
 
       - name: Commit calibration artifacts (if changed)
         run: |
