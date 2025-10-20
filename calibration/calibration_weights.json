@@ -1,61 +1,8 @@
 {
-  "updated_at": "2025-10-06T09:28:26.531712+03:00",
+  "updated_at": "2025-10-20T09:28:59.105433+03:00",
   "beta": 3.0,
   "k_shrink": 30,
   "halflife_days": 60,
-  "global": {
-    "binary": {
-      "Claude-3.7-Sonnet (OR)": 0.0909090909090909,
-      "Gemini": 0.0909090909090909,
-      "Grok": 0.0909090909090909,
-      "OpenRouter-Default": 0.0909090909090909,
-      "ensemble_no_bmc_no_gtmc1": 0.0909090909090909,
-      "ensemble_no_gtmc1": 0.0909090909090909,
-      "ensemble_no_research": 0.0909090909090909,
-      "ensemble_no_research_no_bmc_no_gtmc1": 0.0909090909090909,
-      "ensemble_no_research_no_gtmc1": 0.0909090909090909,
-      "ensemble_no_research_uniform_weights": 0.0909090909090909,
-      "ensemble_uniform_weights": 0.0909090909090909
-    },
-    "multiple_choice": {
-      "Claude-3.7-Sonnet (OR)": 0.0909090909090909,
-      "Gemini": 0.0909090909090909,
-      "Grok": 0.0909090909090909,
-      "OpenRouter-Default": 0.0909090909090909,
-      "ensemble_no_bmc_no_gtmc1": 0.0909090909090909,
-      "ensemble_no_gtmc1": 0.0909090909090909,
-      "ensemble_no_research": 0.0909090909090909,
-      "ensemble_no_research_no_bmc_no_gtmc1": 0.0909090909090909,
-      "ensemble_no_research_no_gtmc1": 0.0909090909090909,
-      "ensemble_no_research_uniform_weights": 0.0909090909090909,
-      "ensemble_uniform_weights": 0.0909090909090909
-    },
-    "numeric": {
-      "Claude-3.7-Sonnet (OR)": 0.0909090909090909,
-      "Gemini": 0.0909090909090909,
-      "Grok": 0.0909090909090909,
-      "OpenRouter-Default": 0.0909090909090909,
-      "ensemble_no_bmc_no_gtmc1": 0.0909090909090909,
-      "ensemble_no_gtmc1": 0.0909090909090909,
-      "ensemble_no_research": 0.0909090909090909,
-      "ensemble_no_research_no_bmc_no_gtmc1": 0.0909090909090909,
-      "ensemble_no_research_no_gtmc1": 0.0909090909090909,
-      "ensemble_no_research_uniform_weights": 0.0909090909090909,
-      "ensemble_uniform_weights": 0.0909090909090909
-    },
-    "discrete_numeric": {
-      "Claude-3.7-Sonnet (OR)": 0.0909090909090909,
-      "Gemini": 0.0909090909090909,
-      "Grok": 0.0909090909090909,
-      "OpenRouter-Default": 0.0909090909090909,
-      "ensemble_no_bmc_no_gtmc1": 0.0909090909090909,
-      "ensemble_no_gtmc1": 0.0909090909090909,
-      "ensemble_no_research": 0.0909090909090909,
-      "ensemble_no_research_no_bmc_no_gtmc1": 0.0909090909090909,
-      "ensemble_no_research_no_gtmc1": 0.0909090909090909,
-      "ensemble_no_research_uniform_weights": 0.0909090909090909,
-      "ensemble_uniform_weights": 0.0909090909090909
-    }
-  },
+  "global": {},
   "by_class": {}
 }
