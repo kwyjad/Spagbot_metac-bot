@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import os
-from typing import Any, Dict, Iterable, Mapping, MutableMapping
+from typing import Any, Dict, Iterable, Mapping, MutableMapping, Optional
 
 import httpx
 
@@ -19,6 +19,14 @@ _DIAG_DIR = os.getenv("LOGS_BASE_DIR", "forecast_logs")
 _DIAG_PATH = os.path.join(_DIAG_DIR, "diagnostics", "metaculus_http.jsonl")
 
 _CF_MARKERS: Iterable[str] = ("Just a moment", "__cf_chl", "challenge-platform")
+
+_TYPE_ALIASES: Dict[str, str] = {
+    "binary": "binary",
+    "multiple_choice": "multiple_choice",
+    "mcq": "multiple_choice",
+    "numeric": "numeric",
+    "discrete": "discrete",
+}
 
 
 def _headers() -> Dict[str, str]:
@@ -45,6 +53,163 @@ def _looks_like_cloudflare(content_type: str, body: str) -> bool:
     return any(marker in body for marker in _CF_MARKERS)
 
 
+def _coerce_type(value: Optional[str]) -> Optional[str]:
+    if not value:
+        return None
+    key = str(value).strip().lower()
+    if not key:
+        return None
+    return _TYPE_ALIASES.get(key, key)
+
+
+def _normalise_question_block(
+    question: MutableMapping[str, Any],
+    *,
+    fallback_title: Optional[str] = None,
+    fallback_type: Optional[str] = None,
+) -> MutableMapping[str, Any]:
+    qtype = _coerce_type(
+        question.get("type")
+        or question.get("question_type")
+        or fallback_type
+    )
+    if qtype:
+        question["type"] = qtype
+        question["question_type"] = qtype
+
+    title = (
+        question.get("title")
+        or question.get("question_text")
+        or question.get("name")
+        or fallback_title
+    )
+    if title:
+        question.setdefault("title", title)
+        question.setdefault("question_text", title)
+
+    return question
+
+
+def _normalise_post_dict(post: Mapping[str, Any]) -> Dict[str, Any]:
+    post_map: MutableMapping[str, Any] = dict(post)
+
+    question_data = post_map.get("question")
+    if isinstance(question_data, Mapping):
+        question_map: MutableMapping[str, Any] = dict(question_data)
+    else:
+        question_map = {}
+
+    fallback_title = (
+        post_map.get("title")
+        or question_map.get("title")
+        or question_map.get("question_text")
+        or post_map.get("name")
+        or post_map.get("question")
+    )
+    fallback_type = (
+        post_map.get("type")
+        or post_map.get("question_type")
+        or question_map.get("type")
+        or question_map.get("question_type")
+    )
+
+    question_map = _normalise_question_block(
+        question_map,
+        fallback_title=fallback_title,
+        fallback_type=fallback_type,
+    )
+
+    if question_map.get("id") is None:
+        question_map["id"] = post_map.get("id") or post_map.get("post_id")
+    if question_map.get("url") is None and post_map.get("url"):
+        question_map["url"] = post_map.get("url")
+
+    post_type = _coerce_type(
+        post_map.get("type")
+        or post_map.get("question_type")
+        or question_map.get("type")
+    )
+    if post_type:
+        post_map["type"] = post_type
+        post_map["question_type"] = post_type
+        question_map["type"] = post_type
+        question_map["question_type"] = post_type
+
+    if fallback_title:
+        post_map.setdefault("title", fallback_title)
+
+    post_map["question"] = question_map
+    return dict(post_map)
+
+
+def _normalise_wrapper_question(question: Any) -> Dict[str, Any]:
+    if isinstance(question, Mapping):
+        q_map: MutableMapping[str, Any] = dict(question)
+    else:
+        q_map = {}
+        for attr in ("to_dict", "model_dump", "dict"):
+            getter = getattr(question, attr, None)
+            if callable(getter):
+                try:
+                    maybe = getter()
+                except Exception:  # pragma: no cover - defensive
+                    continue
+                if isinstance(maybe, Mapping):
+                    q_map = dict(maybe)
+                    break
+        if not q_map:
+            maybe_dict = getattr(question, "__dict__", None)
+            if isinstance(maybe_dict, Mapping):
+                q_map = dict(maybe_dict)
+
+    post_id = q_map.get("post_id") or q_map.get("id") or getattr(question, "post_id", None)
+    if post_id is None:
+        post_id = getattr(question, "id", None)
+
+    title = (
+        q_map.get("question_text")
+        or q_map.get("title")
+        or getattr(question, "question_text", None)
+        or getattr(question, "title", None)
+    )
+    url = q_map.get("page_url") or q_map.get("url") or getattr(question, "page_url", None) or getattr(question, "url", None)
+    raw_type = (
+        q_map.get("question_type")
+        or q_map.get("type")
+        or getattr(question, "question_type", None)
+        or getattr(question, "type", None)
+    )
+    close_time = q_map.get("close_time") or getattr(question, "close_time", None)
+    if hasattr(close_time, "isoformat"):
+        try:
+            close_time = close_time.isoformat()
+        except Exception:  # pragma: no cover - defensive
+            close_time = None
+
+    base_post: Dict[str, Any] = {
+        "id": post_id,
+        "post_id": post_id,
+        "title": title,
+        "url": url,
+        "type": raw_type,
+        "close_time": close_time,
+        "question": {
+            "id": post_id,
+            "title": title,
+            "question_text": title,
+            "url": url,
+            "question_type": raw_type,
+            "type": raw_type,
+            "close_time": close_time,
+        },
+    }
+
+    # Preserve any extra fields from the wrapper mapping.
+    base_post.update({k: v for k, v in q_map.items() if k not in base_post})
+
+    return _normalise_post_dict(base_post)
+
+
 async def _http_list_posts(tournament_id: str | int, *, limit: int, offset: int) -> Mapping[str, Any]:
     params = {
         "limit": limit,
@@ -66,8 +231,14 @@ async def _http_list_posts(tournament_id: str | int, *, limit: int, offset: int)
                 if response.status_code == 200 and content_type.lower().startswith("application/json"):
                     data = response.json()
                     if isinstance(data, Mapping):
-                        return data
-                    return {"results": data}
+                        payload = dict(data)
+                        for key in ("results", "posts"):
+                            if isinstance(payload.get(key), list):
+                                payload[key] = [_normalise_post_dict(p) for p in payload[key]]
+                        return payload
+                    if isinstance(data, list):
+                        return {"results": [_normalise_post_dict(p) for p in data]}
+                    return {"results": []}
 
                 body_snippet = (response.text or "")[:300]
                 is_cf = _looks_like_cloudflare(content_type, body_snippet)
@@ -90,51 +261,6 @@ async def _http_list_posts(tournament_id: str | int, *, limit: int, offset: int)
     if last_exc is not None:
         raise last_exc
     raise RuntimeError("Metaculus posts fetch failed without explicit exception.")
-
-
-def _normalise_question(question: Any) -> Dict[str, Any]:
-    if isinstance(question, Mapping):
-        q_map: MutableMapping[str, Any] = dict(question)
-    else:
-        q_map = {}
-        for attr in ("to_dict", "model_dump", "dict"):
-            getter = getattr(question, attr, None)
-            if callable(getter):
-                try:
-                    maybe = getter()
-                    if isinstance(maybe, Mapping):
-                        q_map = dict(maybe)
-                        break
-                except Exception:
-                    continue
-        if not q_map:
-            for attr in ("__dict__",):
-                data = getattr(question, attr, None)
-                if isinstance(data, Mapping):
-                    q_map = dict(data)
-                    break
-
-    post_id = q_map.get("post_id") or q_map.get("id")
-    question_text = q_map.get("question_text") or q_map.get("title")
-    url = q_map.get("page_url") or q_map.get("url")
-    qtype = q_map.get("question_type") or q_map.get("type")
-    close_time = q_map.get("close_time")
-
-    return {
-        "id": post_id,
-        "post_id": post_id,
-        "question": {
-            "id": post_id,
-            "question_text": question_text,
-            "title": question_text,
-            "url": url,
-            "question_type": qtype,
-            "close_time": close_time,
-        },
-        "url": url,
-        "type": qtype,
-        "close_time": close_time,
-    }
 
 
 async def list_posts_from_tournament_resilient(
@@ -161,7 +287,7 @@ async def list_posts_from_tournament_resilient(
             questions = MetaculusApi.get_all_open_questions_from_tournament(
                 tournament_id=tournament_id
             )
-            normalised = [_normalise_question(q) for q in questions]
+            normalised = [_normalise_wrapper_question(q) for q in questions]
             write_jsonl(
                 _DIAG_PATH,
                 {"phase": "metaculus_fallback", "count": len(normalised)},
