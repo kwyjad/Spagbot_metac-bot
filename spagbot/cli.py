@@ -91,6 +91,7 @@ from .config import (
     TOURNAMENT_ID, AUTH_HEADERS, API_BASE_URL,
     ist_iso, ist_stamp, SUBMIT_PREDICTION, METACULUS_HTTP_TIMEOUT,
 )
+from .net.metaculus_client import list_posts_from_tournament_resilient
 from .prompts import build_binary_prompt, build_numeric_prompt, build_mcq_prompt
 from .providers import DEFAULT_ENSEMBLE, _get_or_client, llm_semaphore
 from .ensemble import EnsembleResult, MemberOutput, run_ensemble_binary, run_ensemble_mcq, run_ensemble_numeric
@@ -396,21 +397,20 @@ def _choose_weights_for_question(calib: Dict[str, Any], class_primary: str, qtyp
 # Metaculus API helpers (GET posts, build payloads, POST forecasts)
 # --------------------------------------------------------------------------------
 
-def list_posts_from_tournament(tournament_id: int | str = TOURNAMENT_ID, offset: int = 0, count: int = 50) -> dict:
-    params = {
-        "limit": count,
-        "offset": offset,
-        "order_by": "-hotness",
-        "forecast_type": ",".join(["binary", "multiple_choice", "numeric", "discrete"]),
-        "tournaments": [tournament_id],
-        "statuses": "open",
-        "include_description": "true",
-    }
-    url = f"{API_BASE_URL}/posts/"
-    r = requests.get(url, params=params, timeout=METACULUS_HTTP_TIMEOUT, **AUTH_HEADERS)
-    if not r.ok:
-        raise RuntimeError(r.text)
-    return json.loads(r.content)
+async def list_posts_from_tournament(
+    tournament_id: int | str = TOURNAMENT_ID,
+    offset: int = 0,
+    count: int = 50,
+) -> dict:
+    """Fetch open posts for a tournament with Cloudflare-aware fallback."""
+    data = await list_posts_from_tournament_resilient(
+        tournament_id,
+        limit=count,
+        offset=offset,
+    )
+    if isinstance(data, dict):
+        return data
+    return {"results": data}
 
 def get_post_details(post_id: int) -> dict:
     url = f"{API_BASE_URL}/posts/{post_id}/"
@@ -1323,7 +1323,7 @@ async def run_job(mode: str, limit: int, submit: bool, purpose: str) -> None:
 
     # --- load questions ------------------------------------------------------
     if mode == "tournament":
-        data = list_posts_from_tournament(TOURNAMENT_ID, offset=0, count=max(1, limit))
+        data = await list_posts_from_tournament(TOURNAMENT_ID, offset=0, count=max(1, limit))
         posts = data.get("results") or data.get("posts") or []
         print(f"[info] Retrieved {len(posts)} open post(s) from '{TOURNAMENT_ID}'.")
     elif mode == "file":
