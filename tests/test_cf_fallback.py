@@ -1,4 +1,5 @@
 from __future__ import annotations
+import asyncio
 import importlib
 import sys
 import types
@@ -24,7 +25,7 @@ class FakeResponse:
 
 
 @pytest.mark.asyncio
-async def test_cf_html_triggers_fallback(monkeypatch, tmp_path):
+def test_cf_html_triggers_fallback(monkeypatch, tmp_path):
     monkeypatch.setenv("METACULUS_TOKEN", "token123")
     monkeypatch.setenv("LOGS_BASE_DIR", str(tmp_path))
     monkeypatch.setenv("METACULUS_MAX_RETRIES", "1")
@@ -57,7 +58,7 @@ async def test_cf_html_triggers_fallback(monkeypatch, tmp_path):
     class StubQuestion:
         def __init__(self):
             self.post_id = 123
-            self.question_text = "Test?"
+            self.question_text = "Q?"
             self.page_url = "https://example.com/q"
             self.question_type = "binary"
             self.close_time = None
@@ -74,7 +75,11 @@ async def test_cf_html_triggers_fallback(monkeypatch, tmp_path):
         types.SimpleNamespace(MetaculusApi=StubApi),
     )
 
-    data = await mc.list_posts_from_tournament_resilient("demo", limit=10)
+    data = asyncio.run(mc.list_posts_from_tournament_resilient("demo", limit=10))
     results = data.get("results")
     assert isinstance(results, list)
     assert results and results[0]["id"] == 123
+    assert results[0]["type"] == "binary"
+    assert results[0]["title"] == "Q?"
+    assert results[0]["question"]["type"] == "binary"
+    assert results[0]["question"]["title"] == "Q?"
